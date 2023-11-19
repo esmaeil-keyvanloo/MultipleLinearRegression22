@@ -1,0 +1,93 @@
+# Import Libraries
+library(readxl)
+library(tidyverse)
+library(skimr)
+library(DataExplorer)
+library(corrplot)
+library(car)
+library(olsrr)
+
+# Import dataset
+dataset <- read_excel("Data/TDM_LinearRegression_HA_data_LMA1.xls")
+class(dataset)
+
+# Transform the dataset into a dataframe
+df <- data.frame(dataset)
+
+# Show summary statistics
+skim(df)
+summary(df)
+
+# Multiple Linear Regression
+model <- lm(atrip ~ DCBD + ATTD + ATTT + Work + Shop + Family + Personal, data = df)
+
+# Checking assumptions
+par(mfrow=c(2,3))
+plot(x = df$atrip, y = df$DCBD, xlab = "atrip", ylab = "DCBD")  
+plot(x = df$atrip, y = df$AHS, xlab = "atrip", ylab = "ATTD")  
+plot(x = df$atrip, y = df$SI, xlab = "atrip", ylab = "ATTT")  
+plot(x = df$atrip, y = df$SRI, xlab = "atrip", ylab = "Work")  
+plot(x = df$atrip, y = df$UI, xlab = "atrip", ylab = "Shop")
+plot(x = df$atrip, y = df$UI, xlab = "atrip", ylab = "Family")
+plot(x = df$atrip, y = df$UI, xlab = "atrip", ylab = "Personal")
+
+# Pairwise scatterplot matrix
+pairs(df[,1:6], pch = 19, lower.panel = NULL)
+
+# Normal distribution of the dependent variable
+shapiro.test(df$atrip)
+ks.test(df$atrip, "pnorm", mean=mean(df$atrip), sd = sd(df$atrip))
+
+# Hypothesis testing
+model_h1 <- lm(atrip ~ DCBD, data = df)
+summary(model_h1)
+
+model_h2_distance <- lm(atrip ~ ATTD, data = df)
+model_h2_time <- lm(atrip ~ ATTT, data = df)
+summary(model_h2_distance)
+summary(model_h2_time)
+
+model_h3 <- lm(atrip ~ Work + Shop + Personal, data = df)
+summary(model_h3)
+
+# Compare models and select the best one
+anova_results <- anova(model_h1, model_h2_distance, model_h2_time, model_h3)
+print("ANOVA Results:")
+print(anova_results)
+
+aic_values <- c(AIC(model_h1), AIC(model_h2_distance), AIC(model_h2_time), AIC(model_h3))
+bic_values <- c(BIC(model_h1), BIC(model_h2_distance), BIC(model_h2_time), BIC(model_h3))
+
+print("AIC Values:")
+print(aic_values)
+
+print("BIC Values:")
+print(bic_values)
+
+best_model <- which.min(aic_values)
+best_model_specification <- switch(best_model,
+                                   "1" = "Original Model",
+                                   "2" = "Model with Distance to CBD",
+                                   "3" = "Model with Total Time Traveled",
+                                   "4" = "Model with Trip Purposes")
+
+cat("Best Model Specification:", best_model_specification)
+
+# Multiple linear regression model
+final_model <- lm(atrip ~ DCBD + ATTD + ATTT + Work + Shop + Family + Personal, data = df)
+summary(final_model)
+
+# Residual analysis plots
+par(mfrow=c(2,2))
+plot(final_model)
+
+# Autocorrelation test (Durbin-Watson)
+durbinWatsonTest(final_model)
+
+# Multicollinearity tests (VIF, TOL, Condition Index)
+ols_vif_tol(final_model)
+ols_eigen_cindex(final_model)
+
+
+
+
